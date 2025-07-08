@@ -3,6 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from main_app.api import api
 from main_app.core.config import config_provider
 from main_app.core.dependencies import get_service_container
+import logging
+from fastapi import Request
+
+# Set up logging to file and console
+log_format = '%(asctime)s %(levelname)s %(name)s %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_format, handlers=[
+    logging.FileHandler('app.log', mode='a'),
+    logging.StreamHandler()
+])
+logger = logging.getLogger('films_api')
 
 # Get configuration
 config = config_provider.settings
@@ -73,7 +83,7 @@ async def startup_event():
     # Initialize the service container (async)
     container = get_service_container()
     await container.initialize()
-    print("Service container initialized.")
+    logger.info("Service container initialized.")
 
 
 @app.on_event("shutdown")
@@ -81,7 +91,16 @@ async def shutdown_event():
     # Cleanup the service container (async)
     container = get_service_container()
     await container.cleanup()
-    print("Service container cleaned up.")
+    logger.info("Service container cleaned up.")
+
+
+@app.middleware('http')
+async def log_requests(request: Request, call_next):
+    user = request.headers.get('X-User', 'anonymous')
+    logger.info(f"Request: {request.method} {request.url.path} | User: {user} | Client: {request.client.host}")
+    response = await call_next(request)
+    logger.info(f"Response: {request.method} {request.url.path} | Status: {response.status_code} | User: {user}")
+    return response
 
 
 @app.get("/")

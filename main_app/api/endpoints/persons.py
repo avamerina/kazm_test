@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 import uuid
+import logging
 
 from main_app.core.dependencies import get_person_service
 from main_app.core.services import PersonService
 from main_app import schemas
+
+logger = logging.getLogger('films_api')
 
 router = APIRouter()
 
@@ -19,6 +22,7 @@ async def search_persons(
     """
     Search persons by name.
     """
+    logger.info(f"Requested persons search: query={query}, page={page_number}, size={page_size}")
     skip = (page_number - 1) * page_size
     
     persons = await person_service.search_persons(query=query, skip=skip, limit=page_size)
@@ -41,7 +45,9 @@ async def get_person_detail(
     """
     person = await person_service.get_person(person_id)
     if not person:
+        logger.warning(f"Requested missing person: {person_id}")
         raise HTTPException(status_code=404, detail="Person not found")
+    logger.info(f"Viewed person detail: {person_id}")
     
     return {
         "uuid": str(person.id),
@@ -87,6 +93,7 @@ async def create_person(
     """
     Create a new person.
     """
+    logger.info(f"Creating person: {person}")
     return await person_service.create_person(person)
 
 @router.put("/{person_id}/", response_model=schemas.PersonResponse)
@@ -100,7 +107,9 @@ async def update_person(
     """
     db_person = await person_service.update_person(person_id, person)
     if not db_person:
+        logger.warning(f"Tried to update missing person: {person_id}")
         raise HTTPException(status_code=404, detail="Person not found")
+    logger.info(f"Updated person: {person_id}")
     return db_person
 
 @router.delete("/{person_id}/")
@@ -113,5 +122,7 @@ async def delete_person(
     """
     success = await person_service.delete_person(person_id)
     if not success:
+        logger.warning(f"Tried to delete missing person: {person_id}")
         raise HTTPException(status_code=404, detail="Person not found")
+    logger.info(f"Deleted person: {person_id}")
     return {"message": "Person deleted successfully"} 

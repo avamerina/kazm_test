@@ -2,6 +2,7 @@ from abc import ABC
 from typing import List, Optional, Tuple, Protocol, Dict, Any, TypeVar, Generic
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+import logging
 
 from .repositories import BaseRepository, FilmRepository, GenreRepository, PersonRepository
 from .. import models, schemas
@@ -30,6 +31,7 @@ class BaseService(ABC, Generic[T]):
     def __init__(self, session: AsyncSession, repository: BaseRepository[T]):
         self.session = session
         self.repository = repository
+        self.logger = logging.getLogger('films_api')
 
     async def get_all(self, skip: int = 0, limit: int = 50, **filters) -> List[T]:
         """Get all entities with pagination and filtering"""
@@ -39,17 +41,29 @@ class BaseService(ABC, Generic[T]):
         """Get entity by ID"""
         return await self.repository.get_by_id(entity_id, load_relationships=load_relationships)
 
-    async def create(self, entity_data: Dict[str, Any]) -> T:
+    async def create(self, entity_data: Dict[str, Any], user: str = 'anonymous') -> T:
         """Create new entity"""
-        return await self.repository.create(entity_data)
+        entity = await self.repository.create(entity_data)
+        self.logger.info(f"User {user} created {self.repository.model.__name__}: {entity}")
+        return entity
 
-    async def update(self, entity_id: uuid.UUID, entity_data: Dict[str, Any]) -> Optional[T]:
+    async def update(self, entity_id: uuid.UUID, entity_data: Dict[str, Any], user: str = 'anonymous') -> Optional[T]:
         """Update entity"""
-        return await self.repository.update(entity_id, entity_data)
+        entity = await self.repository.update(entity_id, entity_data)
+        if entity:
+            self.logger.info(f"User {user} updated {self.repository.model.__name__} {entity_id}")
+        else:
+            self.logger.warning(f"User {user} tried to update missing {self.repository.model.__name__} {entity_id}")
+        return entity
 
-    async def delete(self, entity_id: uuid.UUID) -> bool:
+    async def delete(self, entity_id: uuid.UUID, user: str = 'anonymous') -> bool:
         """Delete entity"""
-        return await self.repository.delete(entity_id)
+        result = await self.repository.delete(entity_id)
+        if result:
+            self.logger.info(f"User {user} deleted {self.repository.model.__name__} {entity_id}")
+        else:
+            self.logger.warning(f"User {user} tried to delete missing {self.repository.model.__name__} {entity_id}")
+        return result
 
     async def bulk_delete(self, entity_ids: List[uuid.UUID]) -> int:
         """Delete multiple entities"""

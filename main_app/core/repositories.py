@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, asc, delete as sql_delete
 from sqlalchemy.orm import selectinload
 import uuid
+import logging
 
 from .. import models, schemas
 
@@ -16,6 +17,7 @@ class BaseRepository(ABC, Generic[T]):
     def __init__(self, session: AsyncSession, model: Type[T]):
         self.session = session
         self.model = model
+        self.logger = logging.getLogger(__name__)
 
     async def get_by_id(self, entity_id: uuid.UUID, load_relationships: bool = False) -> Optional[T]:
         """Get entity by ID with optional relationship loading"""
@@ -60,6 +62,7 @@ class BaseRepository(ABC, Generic[T]):
         """Update entity"""
         db_entity = await self.get_by_id(entity_id)
         if not db_entity:
+            self.logger.warning(f"Update failed: {self.model.__name__} with id {entity_id} not found.")
             return None
 
         cleaned_data = self._clean_entity_data(entity_data)
@@ -76,6 +79,7 @@ class BaseRepository(ABC, Generic[T]):
         """Delete entity"""
         db_entity = await self.get_by_id(entity_id)
         if not db_entity:
+            self.logger.warning(f"Delete failed: {self.model.__name__} with id {entity_id} not found.")
             return False
 
         await self.session.delete(db_entity)
@@ -87,6 +91,7 @@ class BaseRepository(ABC, Generic[T]):
         query = sql_delete(self.model).where(self.model.id.in_(entity_ids))
         result = await self.session.execute(query)
         await self.session.commit()
+        self.logger.info(f"Bulk delete: {result.rowcount} {self.model.__name__} entities deleted.")
         return result.rowcount
 
     async def count(self, **filters) -> int:

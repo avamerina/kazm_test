@@ -1,5 +1,6 @@
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
+import logging
 
 from main_app.core.repositories import FilmRepository, GenreRepository, PersonRepository
 from main_app.core.services import FilmService, GenreService, PersonService, SearchService
@@ -11,6 +12,7 @@ class AsyncUnitOfWork:
     def __init__(self, session, search_service: Optional[SearchService] = None):
         self.session = session
         self.search_service = search_service
+        self.logger = logging.getLogger(__name__)
         
         # Initialize repositories
         self.films = FilmRepository(session)
@@ -28,14 +30,18 @@ class AsyncUnitOfWork:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             await self.rollback()
+            self.logger.error(f"Transaction rolled back due to exception: {exc_type.__name__}: {exc_val}")
         else:
             await self.commit()
+            self.logger.info("Transaction committed successfully.")
     
     async def commit(self):
         await self.session.commit()
+        self.logger.debug("Session commit executed.")
     
     async def rollback(self):
         await self.session.rollback()
+        self.logger.debug("Session rollback executed.")
 
 
 class UnitOfWorkProvider:
@@ -52,11 +58,13 @@ class UnitOfWorkProvider:
             uow = AsyncUnitOfWork(session, self.search_service)
             try:
                 yield uow
-            except Exception:
+            except Exception as e:
                 await uow.rollback()
+                logging.getLogger(__name__).exception("Exception in UnitOfWorkProvider.get_uow: %s", e)
                 raise
             else:
                 await uow.commit()
+                logging.getLogger(__name__).info("UnitOfWorkProvider: Transaction committed.")
 
 
 # Factory function for creating Unit of Work
