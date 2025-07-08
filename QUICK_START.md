@@ -6,8 +6,9 @@ git clone <repo-url>
 cd kazm_test
 ```
 
-## 2. Set up environment variables
-- Copy or create a `.env` file with your DB and app settings.
+## 2. Set up environment variables and db data
+- Copy or create a `.env` file with your DB and app settings in project root
+- Copy 'init.sql' to dump test data into DB in project root
 
 ## 3. Build and start services
 ```bash
