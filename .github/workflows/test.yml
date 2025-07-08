@@ -1,0 +1,150 @@
+name: Test Automation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.10'
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: password
+  POSTGRES_DB: films_db_test
+  ASYNC_DATABASE_URL: postgresql+asyncpg://postgres:password@localhost:5432/films_db_test
+  SYNC_DATABASE_URL: postgresql://postgres:password@localhost:5432/films_db_test
+
+jobs:
+  # Unit Tests Job
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run unit tests
+      run: |
+        python -m pytest tests/ -m "unit" -v --tb=short --junitxml=unit-test-results.xml
+        
+    - name: Upload unit test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-results
+        path: unit-test-results.xml
+
+  # API Tests Job
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Wait for PostgreSQL
+      run: |
+        while ! pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }}; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+        
+    - name: Start application
+      env:
+        POSTGRES_USER: ${{ env.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ASYNC_DATABASE_URL: ${{ env.ASYNC_DATABASE_URL }}
+        SYNC_DATABASE_URL: ${{ env.SYNC_DATABASE_URL }}
+        TESTING: true
+      run: |
+        python main.py &
+        sleep 10  # Wait for app to start
+        
+    - name: Run API tests
+      env:
+        POSTGRES_USER: ${{ env.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ASYNC_DATABASE_URL: ${{ env.ASYNC_DATABASE_URL }}
+        SYNC_DATABASE_URL: ${{ env.SYNC_DATABASE_URL }}
+        TESTING: true
+      run: |
+        python -m pytest tests/ -m "api" -v --tb=short --junitxml=api-test-results.xml
+        
+    - name: Upload API test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: api-test-results
+        path: api-test-results.xml
+
+  # Test Summary Job
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, api-tests]
+    if: always()
+    
+    steps:
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      
+    - name: Generate test summary
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "### API Tests: ${{ needs.api-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View detailed results in the artifacts above." >> $GITHUB_STEP_SUMMARY 
