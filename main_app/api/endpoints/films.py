@@ -108,7 +108,7 @@ async def delete_film(
     """
     Delete a film.
     """
-    success = await film_service.delete_film(film_id)
+    success = await film_service.delete(film_id)
     if not success:
         raise HTTPException(status_code=404, detail="Film not found")
     return {"message": "Film deleted successfully"} 
