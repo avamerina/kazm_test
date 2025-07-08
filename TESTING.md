@@ -22,11 +22,10 @@
   ```
 
 ## Test Types
-- Unit, integration, and API tests are all in `tests/`.
+- Unit and API tests are all in `tests/`.
 - Use markers to filter:
   ```bash
   pytest -m "unit"
-  pytest -m "integration"
   pytest -m "api"
   ```
 

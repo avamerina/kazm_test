@@ -1,17 +1,21 @@
-from fastapi import FastAPI
+import sys
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from main_app.api import api
 from main_app.core.config import config_provider
 from main_app.core.dependencies import get_service_container
-import logging
-from fastapi import Request
 
-# Set up logging to file and console
+# Set up logging to console only during tests (disable file logging)
 log_format = '%(asctime)s %(levelname)s %(name)s %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_format, handlers=[
-    logging.FileHandler('app.log', mode='a'),
-    logging.StreamHandler()
-])
+
+log_handlers = [logging.StreamHandler()]
+if 'pytest' not in sys.modules:
+    log_handlers.append(logging.FileHandler('app.log', mode='a'))
+
+logging.basicConfig(level=logging.INFO, format=log_format, handlers=log_handlers)
 logger = logging.getLogger('films_api')
 
 # Get configuration

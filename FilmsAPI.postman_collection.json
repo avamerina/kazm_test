@@ -213,7 +213,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/films/3d825f60-9fff-4dfe-b294-1a45fa1e115d/",
+							"raw": "{{base_url}}/api/v1/films/{{film_id}}/",
 							"host": [
 								"{{base_url}}"
 							],
@@ -221,7 +221,7 @@
 								"api",
 								"v1",
 								"films",
-								"3d825f60-9fff-4dfe-b294-1a45fa1e115d",
+								"{{film_id}}",
 								""
 							]
 						}
@@ -272,7 +272,7 @@
 							"raw": "{\n  \"title\": \"Updated Test Film\",\n  \"description\": \"An updated test film description\",\n  \"rating\": 9.0\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/films/2a6ae0c2-1362-43cf-a2f1-ff8c2d34ae9a/",
+							"raw": "{{base_url}}/api/v1/films/{{film_id}}",
 							"host": [
 								"{{base_url}}"
 							],
@@ -280,8 +280,7 @@
 								"api",
 								"v1",
 								"films",
-								"2a6ae0c2-1362-43cf-a2f1-ff8c2d34ae9a",
-								""
+								"{{film_id}}"
 							]
 						}
 					},
@@ -293,7 +292,7 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/films/d78ba69b-cd4c-4fcc-8319-80caf36b9cac/",
+							"raw": "{{base_url}}/api/v1/films/{{film_id}}/",
 							"host": [
 								"{{base_url}}"
 							],
@@ -301,7 +300,7 @@
 								"api",
 								"v1",
 								"films",
-								"d78ba69b-cd4c-4fcc-8319-80caf36b9cac",
+								"{{film_id}}",
 								""
 							]
 						}
